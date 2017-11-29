@@ -446,10 +446,12 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     HosuukirokuTest hkData = new HosuukirokuTest( getApplicationContext() );
                     SQLiteDatabase db = hkData.getReadableDatabase();
 
+                    // 設定画面で決めたPreferencesのファイル「STATUS」より、身長と体重の読み込み
                     data = getSharedPreferences("STATUS",MODE_PRIVATE);
+                    // PreferencesのdataEditorが操作できるようにする
                     dateEditor = data.edit();
 
-                    // データ呼び出し
+                    // データ呼び出し。STATUSファイルのSintyouとTaizyuuをキーにして、値を取り出す
                     int sintyouInt = data.getInt("Sintyou", 0);
                     int taizyuuInt = data.getInt("Taizyuu", 0);
 
@@ -464,7 +466,6 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     double calorie =  kekka * taizyuuInt;
 
                     // SQLに、その日の日付と歩数とカロリーを追加
-
                     Calendar cal = Calendar.getInstance();
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
                     String strDate = sdf.format(cal.getTime());
@@ -478,10 +479,14 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                         c = db.rawQuery(dateDualChk, null);
                         c.moveToFirst();
 
-                        sql = "UPDATE hosuukirokuTable SET hosuu = " + hosuu + " , karori = " + calorie + " WHERE hizuke=" + intDate;
+                        String hizukeVal = c.getString(c.getColumnIndex("hizuke"));
 
-                        c = db.rawQuery(sql, null);
-                        c.moveToFirst();
+                        if( hizukeVal.equals( String.valueOf( intDate ) )) {
+                            sql = "UPDATE hosuukirokuTable SET hosuu = " + hosuu + " , karori = " + calorie + " WHERE hizuke=" + intDate;
+
+                            c = db.rawQuery(sql, null);
+                            c.moveToFirst();
+                        }
                     } catch ( Exception e){
                         sql = "INSERT INTO hosuukirokuTable( hizuke , hosuu , karori )values(" + intDate + " ," + hosuu + "," + calorie +")";
 
@@ -495,7 +500,6 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     }
                 }
                 break;
-
         }
     }
 }
