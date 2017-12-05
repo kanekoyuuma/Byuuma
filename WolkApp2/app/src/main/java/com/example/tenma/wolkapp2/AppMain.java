@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -35,8 +36,8 @@ import java.util.Locale;
 
 import static android.R.attr.data;
 
-public class AppMain extends AppCompatActivity implements View.OnClickListener{
 
+public class AppMain extends AppCompatActivity implements View.OnClickListener{
     boolean nowMessageDisp;
     SharedPreferences.Editor editor2;
     MediaPlayer bgm;
@@ -48,6 +49,7 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
 
     Cursor c;
 
+
     public void back(View view) {
         //ボタンの音
         soundPool.play(soundId, 1f, 1f, 0, 0, 1);    //音の大きさは0fから1fで調整できる
@@ -55,9 +57,12 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
         Intent intent = new Intent(this, AppTitle.class);
         //遷移先の画面を起動
         startActivity(intent);
+
+        //Activityの終了
+        finishAndRemoveTask();
     }
 
-    private ImageButton start,stop,reset;
+    private ImageButton start,stop;
 
     private TextView mStepCounterText;
     private SensorManager mSensorManager;
@@ -114,6 +119,22 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
 
                 }
             }
+            if(action.equals("android.intent.action.DATE_CHANGED")) {
+                //stepsの値が0より大きい時
+                if(se.values[0] - pref.getFloat("beforedust", 0) > 0) {
+
+                    //日付の取得
+                    Calendar cal = Calendar.getInstance();
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+                    String strDate = sdf.format(cal.getTime());
+                    int intDate = Integer.parseInt(strDate);
+
+                    //SQLに日付(yyyymmdd)と歩数を入れる
+
+
+                }
+
+            }
         }
     }
 
@@ -122,16 +143,10 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //////////////////////////////////////////////////////////////手直し箇所
         ImageView imageView = (ImageView) findViewById(R.id.gifView);
         GlideDrawableImageViewTarget target = new GlideDrawableImageViewTarget(imageView);
-        Glide.with(this).load(R.raw.main_back3).into(target);
-
-        //リソースファイルから再生
-        /*
-        bgm = MediaPlayer.create(this, R.raw.main_b);
-        bgm.start();
-        bgm.setLooping(true);
-        */
+        Glide.with(this).load(R.raw.main_stop2).into(target);
 
         //ジャイロセンサー起動　歩数計測スタート
         start = (ImageButton) findViewById(R.id.IBstart);
@@ -170,6 +185,7 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
         bgm.start();
         bgm.setLooping(true);
 
+
         //KITKAT以上かつTYPE_STEP_COUNTERが有効ならtrue
         boolean isTarget = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
                 && getPackageManager().hasSystemFeature(PackageManager.FEATURE_SENSOR_STEP_COUNTER);
@@ -184,13 +200,14 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
         } else {
             //TYPE_STEP_COUNTERが無効な場合の処理
             Log.d("hasStepCounter", "STEP-COUNTER is NOT available.");
-            mStepCounterText.setText("できない");
+            mStepCounterText.setText("STEP-COUNTER is NOT available.");
         }
 
         // 予め音声データを読み込む
         soundPool = new SoundPool(50, AudioManager.STREAM_MUSIC, 0);
         soundId = soundPool.load(getApplicationContext(), R.raw.click2, 1);
 
+        findViewById(R.id.imageView8).setVisibility(View.INVISIBLE);
     }
 
     boolean onstopflag = false;
@@ -333,15 +350,24 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                 //最初に表示したい歩数の計算
                 steps = se.values[0] - dust;
 
-                //歩数の表示
-//                Typeface typeface = Typeface.createFromAsset(getAssets(), "font_file_name");
-//                mStepCounterText.setTypeface(typeface);
                 mStepCounterText.setText(String.format(Locale.US, "%d", (int)steps));
 
                 //状態の初期化（ストップを押している状態）
                 startflag = false;
                 stopflag = true;
                 resetflag = true;
+
+                //（起動2回目以降）スタートが押された状態で終了
+                if(beforedust > 0 && beforestopfirst < 0) {
+                    startflag = true;
+                    stopflag = false;
+                    resetflag = true;
+
+                    teststart = (ImageButton) findViewById(R.id.IBstart);
+                    teststart.setImageResource(R.drawable.start2);
+                    teststart = (ImageButton) findViewById(R.id.IBstop);
+                    teststart.setImageResource(R.drawable.stop1);
+                }
 
                 //初回起動時の処理のため、以降このif文に入らないようにする
                 first++;
@@ -354,13 +380,7 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                 steps = se.values[0] - dust;
                 mStepCounterText.setText(String.format(Locale.US, "%d", (int)steps));
                 //wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-                //保存
-                kiroku = getSharedPreferences("saveDate",MODE_PRIVATE);
-                editor2 = kiroku.edit();
 
-                // putInt("キー値" , value )
-                editor2.putFloat("saveDate",steps);
-                editor2.commit();
             }
             //ストップボタンが押されている時
             else if(stopflag) {
@@ -396,6 +416,9 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     teststart.setImageResource(R.drawable.start2);
                     teststart = (ImageButton) findViewById(R.id.IBstop);
                     teststart.setImageResource(R.drawable.stop1);
+                    ImageView imageView = (ImageView) findViewById(R.id.gifView);
+                    GlideDrawableImageViewTarget target = new GlideDrawableImageViewTarget(imageView);
+                    Glide.with(this).load(R.raw.main_back3).into(target);
 
                     Log.v("testt", "-----スタートボタンが押されました-----");
                     Log.v("testt", "いらない歩数[dust(変化前)]" + dust);
@@ -421,6 +444,7 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
 
             //ストップボタン
             case R.id.IBstop:
+
                 boolean isDataDual = false;
                 String sql = "";
 
@@ -434,7 +458,9 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     teststart.setImageResource(R.drawable.start1);
                     teststart = (ImageButton) findViewById(R.id.IBstop);
                     teststart.setImageResource(R.drawable.stop2);
-                    ((ImageView) findViewById(R.id.gifView)).setImageResource(R.drawable.main_stop1);
+                    ImageView imageView = (ImageView) findViewById(R.id.gifView);
+                    GlideDrawableImageViewTarget target = new GlideDrawableImageViewTarget(imageView);
+                    Glide.with(this).load(R.raw.main_stop2).into(target);
 
                     //歩数計算
                     stopfirst = se.values[0];
@@ -442,6 +468,9 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     //状態変更
                     startflag = false;
                     stopflag = true;
+
+
+
 
                     HosuukirokuTest hkData = new HosuukirokuTest( getApplicationContext() );
                     SQLiteDatabase db = hkData.getReadableDatabase();
@@ -500,6 +529,49 @@ public class AppMain extends AppCompatActivity implements View.OnClickListener{
                     }
                 }
                 break;
+
+        }
+    }
+    public void serif(View view){
+
+
+        // 作成したDataクラスに読み取り専用でアクセス
+        HosuukirokuTest hkData = new HosuukirokuTest( getApplicationContext() );
+        SQLiteDatabase db = hkData.getReadableDatabase();
+
+        // セリフが出てなければ表示する
+
+
+        //日付の取得
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String strDate = sdf.format(cal.getTime());
+        int kakunoubanngou = Integer.parseInt(strDate);
+
+        // SELECT（取得したい列） FROM（対象テーブル）WHERE（条件）※変数を使う場合「 + 変数」文字列結合
+        String sql = "SELECT hizuke , hosuu , karori FROM hosuukirokuTable WHERE hizuke=" + kakunoubanngou;
+        if( !nowMessageDisp ){
+            findViewById(R.id.imageView8).setVisibility(View.VISIBLE);
+            nowMessageDisp = true;
+            // SQL文を実行してデータを取得
+            try {
+                c = db.rawQuery(sql, null);
+                c.moveToFirst();
+                String karoriVal = c.getString(c.getColumnIndex("karori"));
+                TextView tv = (TextView) findViewById(R.id.textView);
+                tv.setText("今回の消費カロリーは\n\n"+karoriVal+"㌔です！！！");
+                tv.setTextColor(Color.WHITE);
+            } finally {
+                // クローズ処理
+                c.close();
+                db.close();
+            }
+
+
+        }
+        else{
+            findViewById(R.id.imageView8).setVisibility(View.INVISIBLE);
+            nowMessageDisp = false;
         }
     }
 }
